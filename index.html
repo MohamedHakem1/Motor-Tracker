@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motor Repair Tracker</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      background: #f8f9fa;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .brand {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .brand .siemens { color: #603AA1; }
+    .brand .energy  { color: #603AA1; }
+    .plant-info {
+      text-align: right;
+      line-height: 1.2;
+    }
+    .plant-info .plant { font-size: 18px; font-weight: bold; color: #333; }
+    .plant-info .dept  { font-size: 14px; color: #666; }
+    main { max-width: 800px; margin: 20px auto; padding: 0 20px; }
+    .form-group { margin-bottom: 15px; }
+    input, select, textarea, button { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    button { cursor: pointer; background: #00B14F; color: #fff; border: none; padding: 10px; border-radius: 4px; }
+    button:hover { background: #009e47; }
+    #suggestions { 
+      border: 1px solid #ccc; 
+      max-height: 150px; overflow-y: auto;
+      background: #fff; position: absolute; width: calc(100% - 18px);
+      display: none; z-index: 10;
+    }
+    .suggestion-item { padding: 5px; cursor: pointer; }
+    .suggestion-item:hover { background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="siemens">SIEMENS</span> <span class="energy">ENERGY</span>
+    </div>
+    <div class="plant-info">
+      <div class="plant">Beni Suef Power Plant</div>
+      <div class="dept">Electrical Maintenance Department</div>
+    </div>
+  </header>
+
+  <main>
+    <h1>Motor Repair Tracker</h1>
+
+    <div class="form-group" style="position: relative;">
+      <label for="kks">Enter KKS code</label>
+      <input type="text" id="kks" name="KKS Code" autocomplete="off" placeholder="Enter KKS code or part of code...">
+      <div id="suggestions"></div>
+    </div>
+
+    <form id="motorForm">
+      <div class="form-group">
+        <label for="equipmentType">Equipment Type</label>
+        <input type="text" id="equipmentType" name="Equipment Type">
+      </div>
+      <div class="form-group">
+        <label for="date">Date</label>
+        <input type="date" id="date" name="Date">
+      </div>
+      <div class="form-group">
+        <label for="serviceProvider">Service Provider</label>
+        <input type="text" id="serviceProvider" name="Service Provider">
+      </div>
+      <div class="form-group">
+        <label for="providerPhone">Provider Phone</label>
+        <input type="tel" id="providerPhone" name="Provider Phone">
+      </div>
+      <div class="form-group">
+        <label for="providerEmail">Provider Email</label>
+        <input type="email" id="providerEmail" name="Provider Email">
+      </div>
+      <div class="form-group">
+        <label for="location">Location</label>
+        <input type="text" id="location" name="Location">
+      </div>
+      <div class="form-group">
+        <label for="photos">Photos</label>
+        <input type="file" id="photos" name="Photos" multiple accept="image/*">
+      </div>
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" name="Description" rows="4"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="reason">Reason</label>
+        <textarea id="reason" name="Reason" rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="status">Status</label>
+        <select id="status" name="Status">
+          <option value="sent for repair">sent for repair</option>
+          <option value="delivered to vendor">delivered to vendor</option>
+          <option value="repair completed">repair completed</option>
+          <option value="not repairable">not repairable</option>
+          <option value="under repair">under repair</option>
+          <option value="returned to plant">returned to plant</option>
+        </select>
+      </div>
+      <button type="submit" id="saveBtn">Save</button>
+    </form>
+  </main>
+
+  <script>
+    const APP_URL = 'https://script.google.com/macros/s/AKfycbzcXWAKF7z7WjMS_7Eg23dPxJM8yaEw0Xq1gzGthTsjeiqWgkTzfKFg2gjnlqEqfh0J/exec';
+    function debounce(fn, delay) {
+      let timer;
+      return function(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+      };
+    }
+    const kksInput = document.getElementById('kks');
+    const suggestionsBox = document.getElementById('suggestions');
+    const form = document.getElementById('motorForm');
+    async function searchCodes(query) {
+      const res = await fetch(`${APP_URL}?action=search&query=${encodeURIComponent(query)}`);
+      return res.ok ? await res.json() : [];
+    }
+    async function getRecord(code) {
+      const res = await fetch(`${APP_URL}?action=get&code=${encodeURIComponent(code)}`);
+      return res.ok ? await res.json() : null;
+    }
+    function clearForm() { form.reset(); }
+    function fillForm(data) {
+      document.getElementById('equipmentType').value = data['Equipment Type'] || '';
+      document.getElementById('date').value = data['Date'] || '';
+      document.getElementById('serviceProvider').value = data['Service Provider'] || '';
+      document.getElementById('providerPhone').value = data['Provider Phone'] || '';
+      document.getElementById('providerEmail').value = data['Provider Email'] || '';
+      document.getElementById('location').value = data['Location'] || '';
+      document.getElementById('description').value = data['Description'] || '';
+      document.getElementById('reason').value = data['Reason'] || '';
+      document.getElementById('status').value = data['Status'] || 'sent for repair';
+    }
+    function showSuggestions(list) {
+      suggestionsBox.innerHTML = '';
+      list.forEach(code => {
+        const div = document.createElement('div');
+        div.textContent = code;
+        div.classList.add('suggestion-item');
+        div.addEventListener('click', async () => {
+          kksInput.value = code;
+          suggestionsBox.style.display = 'none';
+          const record = await getRecord(code);
+          if (record) fillForm(record);
+        });
+        suggestionsBox.appendChild(div);
+      });
+      suggestionsBox.style.display = list.length ? 'block' : 'none';
+    }
+    kksInput.addEventListener('input', debounce(async function() {
+      const query = this.value.trim();
+      if (!query) { suggestionsBox.style.display = 'none'; clearForm(); return; }
+      const codes = await searchCodes(query);
+      if (codes.length) showSuggestions(codes);
+      else { suggestionsBox.style.display = 'none'; clearForm(); }
+    }, 300));
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const data = { 'KKS Code': kksInput.value.trim() };
+      formData.forEach((val, key) => data[key] = val);
+      const res = await fetch(APP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save', record: data })
+      });
+      if (res.ok) alert('Saved successfully'); else alert('Error saving data');
+    });
+  </script>
+</body>
+</html>
